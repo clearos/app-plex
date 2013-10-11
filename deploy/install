@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Set default start/boot
+#-----------------------
+
+logger -p local6.notice -t installer "app-plex-core - enabling Plex Media Server"
+chkconfig plexmediaserver on
+
+logger -p local6.notice -t installer "app-plex-core - starting Plex Media Server"
+service plexmediaserver start >/dev/null 2>&1
