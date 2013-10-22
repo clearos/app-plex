@@ -55,12 +55,18 @@ clearos_load_language('plex');
 // Classes
 //--------
 
+use \clearos\apps\base\Configuration_File as Configuration_File;
 use \clearos\apps\base\Engine as Engine;
+use \clearos\apps\base\File as File;
 use \clearos\apps\base\Daemon;
+use \clearos\apps\network\Network_Utils;
 use \clearos\apps\network_map\Network_Map;
 
+clearos_load_library('base/Configuration_File');
 clearos_load_library('base/Engine');
+clearos_load_library('base/File');
 clearos_load_library('base/Daemon');
+clearos_load_library('network/Network_Utils');
 clearos_load_library('network_map/Network_Map');
 
 // Exceptions
@@ -94,10 +100,17 @@ class Plex extends Daemon
     ///////////////////////////////////////////////////////////////////////////////
     // C O N S T A N T S
     ///////////////////////////////////////////////////////////////////////////////
+    const FILE_CONFIG = "/etc/clearos/plex.conf";
+    const FILE_ACL_DEF = "/var/clearos/plex/acl.conf";
+    const FILE_FIREWALL_D = "/etc/clearos/firewall.d/10-plex";
+    const FOLDER_PLEX = '/var/clearos/plex';
 
     ///////////////////////////////////////////////////////////////////////////////
     // V A R I A B L E S
     ///////////////////////////////////////////////////////////////////////////////
+
+    protected $config = NULL;
+    protected $is_loaded = FALSE;
 
     ///////////////////////////////////////////////////////////////////////////////
     // M E T H O D S
@@ -115,24 +128,460 @@ class Plex extends Daemon
     }
 
     /**
+     * Get mode.
+     *
+     * @return string block mode (allow_all or block_all)
+     * @throws Engine_Exception
+     */
+
+    function get_mode()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        if (! $this->is_loaded)
+            $this->_load_config();
+
+        if (!isset($this->config["mode"]))
+            return 'allow_all';
+        return $this->config["mode"];
+    }
+
+    /**
+     * Get modes.
+     *
+     * @return array valid modes
+     * @throws Engine_Exception
+     */
+
+    function get_modes()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        $modes = array(
+            'allow_all' => lang('plex_allow_all'),
+            'block_all' => lang('plex_block_all')
+        );
+        return $modes;
+    }
+
+    /**
+     * Delete ACL rule.
+     *
+     * @param int $id line number (ID);
+     *
+     * @return void
+     * @throws Engine_Exception
+     */
+
+    function delete_acl($id)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        try {
+            $file = new File(self::FILE_FIREWALL_D, TRUE);
+            $lines = $file->get_contents_as_array();
+            // Remove line to delete
+            unset($lines[$id]);
+            $temp = new File(self::FILE_FIREWALL_D, TRUE, TRUE);
+            foreach ($lines as $line)
+                $temp->add_lines($line . "\n");
+            $file->replace($temp->get_filename());
+        } catch (Exception $e) {
+            throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
+        }
+    }
+
+
+    /**
+     * Get ACL rules.
+     *
+     * @return array ACL rules
+     * @throws Engine_Exception
+     */
+
+    function get_acl()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        $file = new File(self::FILE_FIREWALL_D);
+        $rules = array();
+        $devices = $this->get_device_list();
+        if (!$file->exists())
+            return $rules;
+        $lines = $file->get_contents_as_array();
+        $line_no = 0;
+        foreach ($lines as $line) {
+            if (preg_match("/^.*--mac-source\s+(([a-fA-F0-9]{2}[:|\-]?){6})\s+.*ACCEPT # (.*)$/", $line, $match)) {
+                $dev_id = $match[1];
+                if (isset($devices[$match[1]]['nickname']))
+                    $dev_id = $devices[$match[1]]['nickname']; 
+                else if (isset($devices[$match[1]]['username']))
+                    $dev_id = $devices[$match[1]]['username'] . ' - ' . $devices[$match[1]]['type']; 
+                if (!array_key_exists($match[1], $rules)) {
+                    $rules[$match[1]] = array(
+                        'device' => $dev_id,
+                        'ip' => key($devices[$match[1]]['mapping'])
+                    );
+                }
+                $rules[$match[1]]['acl'][$line_no] = $match[3];
+            }
+            $line_no++;
+        }
+        return $rules;
+    }
+
+
+    /**
+     * Get ACL definitions.
+     *
+     * @return array ACL rules
+     * @throws Engine_Exception
+     */
+
+    function get_acl_definitions()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        $file = new File(self::FILE_ACL_DEF);
+        $rules = array();
+        if (!$file->exists())
+            return $rules;
+        $lines = $file->get_contents_as_array();
+        foreach ($lines as $line) {
+            $info = json_decode($line); 
+            $rules[$info->nickname] = array(
+                'start' => $info->start,
+                'stop' => $info->stop,
+                'dow' => $info->dow
+            );
+        }
+        return $rules;
+    }
+
+
+    /**
      * Get device list.
+     *
+     * @return array of devices
+     * @throws Engine_Exception
      */
 
     function get_device_list()
     {
         clearos_profile(__METHOD__, __LINE__);
         $network_map = new Network_Map();
-        $devices = $network_map->get_mapped_list(); 
-devel_print_r($devices);
+        $devices = array_merge($network_map->get_mapped_list(), $network_map->get_unknown_list()); 
         return $devices;
+    }
+
+    /**
+     * Get time options for start/stop ACL.
+     *
+     * @return array of times
+     * @throws Engine_Exception
+     */
+
+    function get_time_options()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+        $options = array();
+        for ($hour = 0; $hour < 24; $hour++) {
+            for ($minute = 0; $minute <=45; $minute+= 15) {
+                $val = str_pad($hour, 2, '0', STR_PAD_LEFT) . ':' . str_pad($minute, 2, '0', STR_PAD_LEFT);
+                $options[$val] = $val;
+            }
+        }
+        return $options;
+    }
+
+    /**
+     * Get days of week options for start/stop ACL.
+     *
+     * @return array of days
+     * @throws Engine_Exception
+     */
+
+    function get_days_of_week()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+        $options = array(
+            'Mon' => lang('base_monday'),
+            'Tue' => lang('base_tuesday'),
+            'Wed' => lang('base_wednesday'),
+            'Thu' => lang('base_thursday'),
+            'Fri' => lang('base_friday'),
+            'Sat' => lang('base_saturday'),
+            'Sun' => lang('base_sunday')
+        );
+        return $options;
+    }
+
+    /**
+     * Set the allow/block mode.
+     *
+     * @param string $mode mode
+     *
+     * @return void
+     * @throws Validation_Exception, Engine_Exception
+     */
+
+    function set_mode($mode)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        Validation_Exception::is_valid($this->validate_mode($mode));
+
+        $file = new File(self::FILE_FIREWALL_D, TRUE);
+        if ($mode == 'allow_all') {
+            if ($file->exists())
+                $file->move_to(self::FOLDER_PLEX);
+        } else {
+            if (!$file->exists()) {
+                $file = new File(self::FOLDER_PLEX . '/10-plex', TRUE);
+                if ($file->exists()) {
+                    $file->move_to(self::FILE_FIREWALL_D);
+                } else {
+                    $file = new File(self::FILE_FIREWALL_D, TRUE);
+                    $file->create('root', 'root', '0755');
+                }
+            }
+            // Now that file exists, make sure first line is blanket block
+            $file = new File(self::FILE_FIREWALL_D, TRUE);
+            $lines = $file->get_contents_as_array();
+            
+            if (empty($lines) || !preg_match('/.*DROP$/', end($lines)))
+                $file->add_lines("iptables -A INPUT -p tcp --dport 32400 -j DROP\n");
+        }
+        $this->_set_parameter('mode', $mode);
+    }
+
+    /**
+     * Add ACL.
+     *
+     * @param string $nickname nickname
+     * @param string $start    Start time
+     * @param string $stop     Stop time
+     * @param string $dow      Day of Week
+     *
+     * @return void
+     * @throws Validation_Exception, Engine_Exception
+     */
+
+    public function add_acl_definition($nickname, $start, $stop, $dow)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        Validation_Exception::is_valid($this->validate_nickname($nickname));
+        Validation_Exception::is_valid($this->validate_start($start));
+        Validation_Exception::is_valid($this->validate_stop($stop));
+        Validation_Exception::is_valid($this->validate_dow($dow));
+
+        try {
+            $file = new File(self::FILE_ACL_DEF, TRUE);
+            if (!$file->exists())
+                $file->create('webconfig', 'webconfig', '0644');
+            $file->add_lines(
+                json_encode(
+                    array(
+                        'nickname' => $nickname,
+                        'start' => $start,
+                        'stop' => $stop,
+                        'dow' => $dow
+                    )
+                ) .
+                "\n"
+            );
+        } catch (Exception $e) {
+            throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////
     // V A L I D A T I O N   M E T H O D S
     ///////////////////////////////////////////////////////////////////////////////
 
+    /**
+     * Validation routine for mode.
+     *
+     * @param int $mode mode
+     *
+     * @return mixed void if mode is valid, errmsg otherwise
+     */
+
+    function validate_mode($mode)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        if (!array_key_exists($mode, $this->get_modes()))
+            return lang('plex_mode_invalid');
+    }
+
+    /**
+     * Validation routine for nickname.
+     *
+     * @param string $nickname nickname
+     *
+     * @return mixed void if nickname is valid, errmsg otherwise
+     */
+
+    function validate_nickname($nickname)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        if (! preg_match('/^[a-zA-Z0-9_\-\.\/ ]*$/', $nickname))
+            return lang('plex_nickname_invalid');
+    }
+
+    /**
+     * Validation routine for start time.
+     *
+     * @param string $start start time
+     *
+     * @return mixed void if start is valid, errmsg otherwise
+     */
+
+    function validate_start($start)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        if (!array_key_exists($start, $this->get_time_options()))
+            return lang('plex_start_invalid');
+    }
+
+    /**
+     * Validation routine for stop time.
+     *
+     * @param string $stop stop time
+     *
+     * @return mixed void if stop is valid, errmsg otherwise
+     */
+
+    function validate_stop($stop)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        if (!array_key_exists($stop, $this->get_time_options()))
+            return lang('plex_stop_invalid');
+    }
+
+    /**
+     * Validation routine for day of week.
+     *
+     * @param string $dow day of week
+     *
+     * @return mixed void if day of week is valid, errmsg otherwise
+     */
+
+    function validate_dow($dow)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        $days = preg_split('/\s*,\s*/', $dow);
+        foreach ($days as $day) {
+            if (!array_key_exists($day, $this->get_days_of_week()))
+                return lang('plex_dow_invalid');
+        }
+    }
+
+    /**
+     * Validates MAC address.
+     *
+     * @param string  $mac          MAC address
+     *
+     * @return string error message if MAC address is invalid
+     */
+
+    public function validate_mac($mac)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        if (! Network_Utils::is_valid_mac($mac, TRUE))
+            return lang('network_mac_address_invalid');
+
+    }
+
+
     ///////////////////////////////////////////////////////////////////////////////
     // P R I V A T E   M E T H O D S
     ///////////////////////////////////////////////////////////////////////////////
+    /**
+    * loads configuration files.
+    *
+    * @return void
+    * @throws Engine_Exception
+    */
+
+    protected function _load_config()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        $configfile = new Configuration_File(self::FILE_CONFIG);
+
+        $this->config = $configfile->load();
+
+        $this->is_loaded = TRUE;
+    }
+
+    /**
+     * Add an ACL rule.
+     *
+     * @param string $mac      MAC address
+     * @param string $nickname nickname
+     *
+     * @return  void
+     * @throws Engine_Exception
+     */
+
+    public function add_acl($mac, $rule)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        Validation_Exception::is_valid($this->validate_mac($mac));
+        Validation_Exception::is_valid($this->validate_nickname($nickname));
+
+        try {
+            $definitions = $this->get_acl_definitions();
+            $start = $definitions[$rule]['start'];
+            $stop = $definitions[$rule]['stop'];
+            $dow = $definitions[$rule]['dow'];
+            $file = new File(self::FILE_FIREWALL_D, TRUE);
+            if (!$file->exists())
+                $file->create('root', 'root', '0644');
+//        iptables -A INPUT -p tcp -m mac --mac-source 00:0F:EA:91:04:07 --dport 32400 -m state --state NEW,ESTABLISHED -m time --timestart 09:00 --timestop 18:00 --weekdays Mon,Tue,Wed,Thu,Fri -j ACCEPT
+            $file->add_lines(
+                "iptables -A INPUT -p tcp -m mac --mac-source $mac --dport 32400 -m state " .
+                "--state NEW,ESTABLISHED -m time --timestart $start --timestop $stop --weekdays $dow -j ACCEPT # $rule\n"
+            ); 
+        } catch (Exception $e) {
+            throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
+        }
+    }
+
+    /**
+     * Generic set routine.
+     *
+     * @param string $key   key name
+     * @param string $value value for the key
+     *
+     * @return  void
+     * @throws Engine_Exception
+     */
+
+    private function _set_parameter($key, $value)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        try {
+            $file = new File(self::FILE_CONFIG, TRUE);
+            $match = $file->replace_lines("/^$key\s*=\s*/", "$key = $value\n");
+            if (!$match)
+                $file->add_lines("$key = $value\n");
+        } catch (Exception $e) {
+            throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
+        }
+
+        $this->is_loaded = FALSE;
+    }
+
 
 }

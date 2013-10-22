@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plex controller.
+ * Plex settings controller.
  *
  * @category   apps
  * @package    plex
@@ -38,7 +38,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
- * Plex controller.
+ * Plex settings controller.
  *
  * @category   apps
  * @package    plex
@@ -49,30 +49,70 @@
  * @link       http://www.elogic.ca/clearos/marketplace/apps/plex
  */
 
-class Plex extends ClearOS_Controller
+class Settings extends ClearOS_Controller
 {
-
     /**
-     * Plex default controller
-     *
-     * @return view
+     * Index.
      */
 
     function index()
     {
-        // Load dependencies
-        //------------------
+        // Load libraries
+        //---------------
 
         $this->load->library('plex/Plex');
-        $this->lang->load('plex');
 
-        // Load views
-        //-----------
+        // Load view data
+        //---------------
 
-        $views = array('plex/server', 'plex/summary', 'plex/settings');
-        if ($this->plex->get_mode() != 'allow_all')
-            $views[] = 'plex/acl';
+        $data = array(
+            'edit' => FALSE,
+            'mode' => $this->plex->get_mode(),
+            'modes' => $this->plex->get_modes()
+        );
 
-        $this->page->view_forms($views, lang('plex_app_name'));
+        $this->page->view_form('plex/settings', $data, lang('base_settings'));
+    }
+
+    /**
+     * Edit settings view.
+     *
+     * @return view
+     */
+
+    function edit()
+    {
+        // Load libraries
+        //---------------
+
+        $this->load->library('plex/Plex');
+
+        // Set validation rules
+        //---------------------
+       
+        $this->form_validation->set_policy('mode', 'plex/Plex', 'validate_mode');
+        $form_ok = $this->form_validation->run();
+
+        // Handle form submit
+        //-------------------
+        if ($form_ok) {
+            try {
+                $this->plex->set_mode($this->input->post('mode'));
+                redirect('/plex');
+                return;
+            } catch (Exception $e) {
+                $this->page->set_message(clearos_exception_message($e), 'warning');
+            }
+        }
+
+        $data = array(
+            'edit' => TRUE,
+            'mode' => $this->plex->get_mode(),
+            'modes' => $this->plex->get_modes()
+        );
+
+        $this->page->view_form('plex/settings', $data, lang('base_settings'));
     }
 }
+
+// vi: expandtab shiftwidth=4 softtabstop=4 tabstop=4

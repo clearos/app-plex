@@ -53,25 +53,21 @@ $headers = array(
 
 $items = array();
 
-foreach ($devices as $mac => $device) {
-    $item['title'] = $device['device'];
-    $item['action'] = '';
-    $item['current_state'] = TRUE;
-    $item['anchors'] = button_set(array(
-        anchor_edit('/app/plex/acl/' . $mac)
-    ));
-    $device_or_user = $mac; 
-    if (isset($device['nickname']))
-        $device_or_user = $device['nickname']; 
-    else if (isset($device['username']))
-        $device_or_user = $device['username'] . ' - ' . $device['type']; 
-    $item['details'] = array(
-        $device_or_user,
-        key($device['mapping']),
-        'M-F 20:00'
-    );
+foreach ($rules as $mac => $info) {
+    foreach ($info['acl'] as $id => $rule) {
+        $item['title'] = $info['device'];
+        $item['action'] = '';
+        $item['anchors'] = button_set(array(
+            anchor_delete('/app/plex/acl/delete/' . $id)
+        ));
+        $item['details'] = array(
+            $info['device'],
+            $info['ip'],
+            $rule
+        );
 
-    $items[] = $item;
+        $items[] = $item;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -79,12 +75,11 @@ foreach ($devices as $mac => $device) {
 ///////////////////////////////////////////////////////////////////////////////
 
 $options = array(
-    'id' => 'plex_device_summary',
-    'row-enable-disable' => TRUE
+    'id' => 'plex_acl_summary',
 );
 echo summary_table(
     lang('plex_device_acl'),
-    array(anchor_custom('/app/plex/acl/add', lang('plex_add_edit_acl'), 'important')),
+    array(anchor_custom('/app/plex/acl/rule', lang('plex_add_acl_rule'), 'important')),
     $headers,
     $items,
     $options

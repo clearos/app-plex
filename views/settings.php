@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plex devices configuration.
+ * Plex settings configuration.
  *
  * @category   apps
  * @package    plex
@@ -38,56 +38,38 @@ $this->lang->load('plex');
 $this->lang->load('network');
 
 ///////////////////////////////////////////////////////////////////////////////
-// Headers
+// Form open
 ///////////////////////////////////////////////////////////////////////////////
 
-$headers = array(
-    lang('plex_device'),
-    lang('network_ip'),
-    lang('plex_acl')
-);
+echo form_open('plex/settings/edit');
+echo form_header(lang('base_settings'));
 
 ///////////////////////////////////////////////////////////////////////////////
-// Items
+// Form fields and buttons
 ///////////////////////////////////////////////////////////////////////////////
 
-$items = array();
-
-foreach ($devices as $mac => $device) {
-    $item['title'] = $device['device'];
-    $item['action'] = '';
-    $item['current_state'] = TRUE;
-    $item['anchors'] = button_set(array(
-        anchor_edit('/app/plex/acl/' . $mac)
-    ));
-    $device_or_user = $mac; 
-    if (isset($device['nickname']))
-        $device_or_user = $device['nickname']; 
-    else if (isset($device['username']))
-        $device_or_user = $device['username'] . ' - ' . $device['type']; 
-    $item['details'] = array(
-        $device_or_user,
-        key($device['mapping']),
-        'M-F 20:00'
+if ($edit) {
+    $read_only = FALSE;
+    $buttons = array(
+        form_submit_update('submit'),
+        anchor_cancel('/app/plex')
     );
-
-    $items[] = $item;
+} else {
+    $read_only = TRUE;
+    $buttons = array(
+        anchor_edit('/app/plex/settings/edit'),
+        anchor_custom('/app/plex/acl/add', lang('plex_add_edit_acl'), 'important')
+    );
 }
 
+echo field_dropdown('mode', $modes, $mode, lang('plex_mode'), $read_only);
+echo field_button_set($buttons);
+
 ///////////////////////////////////////////////////////////////////////////////
-// Summary table
+// Form close
 ///////////////////////////////////////////////////////////////////////////////
 
-$options = array(
-    'id' => 'plex_device_summary',
-    'row-enable-disable' => TRUE
-);
-echo summary_table(
-    lang('plex_device_acl'),
-    array(anchor_custom('/app/plex/acl/add', lang('plex_add_edit_acl'), 'important')),
-    $headers,
-    $items,
-    $options
-);
+echo form_footer();
+echo form_close();
 
 // vi: expandtab shiftwidth=4 softtabstop=4 tabstop=4

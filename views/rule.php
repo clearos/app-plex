@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plex devices configuration.
+ * Plex ACL add rule.
  *
  * @category   apps
  * @package    plex
@@ -35,59 +35,27 @@
 
 $this->lang->load('base');
 $this->lang->load('plex');
-$this->lang->load('network');
 
 ///////////////////////////////////////////////////////////////////////////////
-// Headers
+// Form handler
 ///////////////////////////////////////////////////////////////////////////////
 
-$headers = array(
-    lang('plex_device'),
-    lang('network_ip'),
-    lang('plex_acl')
+$buttons = array( 
+    form_submit_add('submit-form'),
+    anchor_cancel('/app/plex')
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-// Items
+// Form
 ///////////////////////////////////////////////////////////////////////////////
+echo form_open('plex/acl/rule');
+echo form_header(lang('plex_add_acl'));
 
-$items = array();
+echo field_dropdown('mac', $devices, $mac, lang('plex_device'), FALSE);
+echo field_dropdown('nickname', $definitions, $nickname, lang('plex_acl_definition'), FALSE);
+echo field_button_set($buttons);
 
-foreach ($devices as $mac => $device) {
-    $item['title'] = $device['device'];
-    $item['action'] = '';
-    $item['current_state'] = TRUE;
-    $item['anchors'] = button_set(array(
-        anchor_edit('/app/plex/acl/' . $mac)
-    ));
-    $device_or_user = $mac; 
-    if (isset($device['nickname']))
-        $device_or_user = $device['nickname']; 
-    else if (isset($device['username']))
-        $device_or_user = $device['username'] . ' - ' . $device['type']; 
-    $item['details'] = array(
-        $device_or_user,
-        key($device['mapping']),
-        'M-F 20:00'
-    );
-
-    $items[] = $item;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Summary table
-///////////////////////////////////////////////////////////////////////////////
-
-$options = array(
-    'id' => 'plex_device_summary',
-    'row-enable-disable' => TRUE
-);
-echo summary_table(
-    lang('plex_device_acl'),
-    array(anchor_custom('/app/plex/acl/add', lang('plex_add_edit_acl'), 'important')),
-    $headers,
-    $items,
-    $options
-);
+echo form_footer();
+echo form_close();
 
 // vi: expandtab shiftwidth=4 softtabstop=4 tabstop=4

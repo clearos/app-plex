@@ -65,14 +65,12 @@ class Devices extends ClearOS_Controller
         // Load view data
         //---------------
 
-        $devices = $this->plex->get_device_list();
+        $data = array(
+            'mode' => $this->plex->get_mode(),
+            'modes' => $this->plex->get_modes()
+        );
 
-        foreach ($devices as $device) {
-            $entry = array();
-            $entry['device'] = gethostbyaddr($device);
-            $entry['address'] = $device;
-            $data['devices'][] = $entry;
-        }
+        $data['devices'] = $this->plex->get_device_list();
 
         $this->page->view_form('plex/devices', $data, lang('plex_devices'));
     }

@@ -36,7 +36,39 @@ $app['core_requires'] = array(
 );
 
 $app['core_file_manifest'] = array(
-    'plexmediaserver.php' => array('target' => '/var/clearos/base/daemon/plexmediaserver.php')
+    'plexmediaserver.php' => array('target' => '/var/clearos/base/daemon/plexmediaserver.php'),
+    'plex.conf' => array(
+        'target' => '/etc/clearos/plex.conf',
+        'mode' => '0644',
+        'owner' => 'webconfig',
+        'group' => 'webconfig',
+        'config' => TRUE,
+        'config_params' => 'noreplace'
+    ),
+    '10-plex' => array(
+        'target' => '/etc/clearos/firewall.d/10-plex',
+        'mode' => '0755',
+        'owner' => 'root',
+        'group' => 'root',
+        'config' => TRUE,
+        'config_params' => 'noreplace'
+    ),
+    'acl.conf' => array(
+        'target' => '/var/clearos/plex/acl.conf',
+        'mode' => '0644',
+        'owner' => 'webconfig',
+        'group' => 'webconfig',
+        'config' => TRUE,
+        'config_params' => 'noreplace'
+    )
+);
+
+$app['core_directory_manifest'] = array(
+    '/var/clearos/plex' => array(
+        'mode' => '0755',
+        'owner' => 'webconfig',
+        'group' => 'webconfig'
+    )
 );
 
 $app['delete_dependency'] = array(

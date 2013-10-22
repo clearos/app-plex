@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plex devices configuration.
+ * Plex ACL add.
  *
  * @category   apps
  * @package    plex
@@ -35,16 +35,39 @@
 
 $this->lang->load('base');
 $this->lang->load('plex');
-$this->lang->load('network');
+
+///////////////////////////////////////////////////////////////////////////////
+// Form handler
+///////////////////////////////////////////////////////////////////////////////
+
+$buttons = array( 
+    form_submit_add('submit-form'),
+    anchor_cancel('/app/plex')
+);
+
+///////////////////////////////////////////////////////////////////////////////
+// Form
+///////////////////////////////////////////////////////////////////////////////
+echo form_open('plex/acl/add');
+echo form_header(lang('plex_add_acl'));
+
+echo field_input('nickname', '', lang('plex_nickname'),FALSE);
+echo field_dropdown('start', $time_options, $start, lang('plex_start'), FALSE);
+echo field_dropdown('stop', $time_options, $stop, lang('plex_stop'), FALSE);
+echo field_multiselect_dropdown('dow', $days_of_week, $dow, lang('plex_dow'));
+echo field_button_set($buttons);
+
+echo form_footer();
+echo form_close();
 
 ///////////////////////////////////////////////////////////////////////////////
 // Headers
 ///////////////////////////////////////////////////////////////////////////////
 
 $headers = array(
-    lang('plex_device'),
-    lang('network_ip'),
-    lang('plex_acl')
+    lang('plex_nickname'),
+    lang('plex_time'),
+    lang('plex_dow')
 );
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -53,22 +76,19 @@ $headers = array(
 
 $items = array();
 
-foreach ($devices as $mac => $device) {
-    $item['title'] = $device['device'];
+foreach ($definitions as $nickname => $info) {
+    $item['title'] = $nickname;
     $item['action'] = '';
-    $item['current_state'] = TRUE;
-    $item['anchors'] = button_set(array(
-        anchor_edit('/app/plex/acl/' . $mac)
-    ));
-    $device_or_user = $mac; 
-    if (isset($device['nickname']))
-        $device_or_user = $device['nickname']; 
-    else if (isset($device['username']))
-        $device_or_user = $device['username'] . ' - ' . $device['type']; 
+    $item['anchors'] = button_set(
+        array(
+            anchor_delete('/app/plex/acl/delete/' . $nickname),
+            anchor_edit('/app/plex/acl/edit/' . $nickname)
+        )
+    );
     $item['details'] = array(
-        $device_or_user,
-        key($device['mapping']),
-        'M-F 20:00'
+        $nickname,
+        $info['start'] . ' - ' . $info['stop'],
+        $info['dow']
     );
 
     $items[] = $item;
@@ -79,12 +99,11 @@ foreach ($devices as $mac => $device) {
 ///////////////////////////////////////////////////////////////////////////////
 
 $options = array(
-    'id' => 'plex_device_summary',
-    'row-enable-disable' => TRUE
+    'id' => 'plex_acl_summary'
 );
 echo summary_table(
-    lang('plex_device_acl'),
-    array(anchor_custom('/app/plex/acl/add', lang('plex_add_edit_acl'), 'important')),
+    lang('plex_acl_times'),
+    NULL,
     $headers,
     $items,
     $options
