@@ -41,20 +41,20 @@ $this->lang->load('plex');
 ///////////////////////////////////////////////////////////////////////////////
 
 $buttons = array( 
-    form_submit_add('submit-form'),
+    ($edit ? form_submit_update('update') : form_submit_add('add')),
     anchor_cancel('/app/plex')
 );
 
 ///////////////////////////////////////////////////////////////////////////////
 // Form
 ///////////////////////////////////////////////////////////////////////////////
-echo form_open('plex/acl/add');
+echo form_open(($edit ? 'plex/acl/edit_time' : 'plex/acl/add_time'));
 echo form_header(lang('plex_add_acl'));
 
-echo field_input('nickname', '', lang('plex_nickname'),FALSE);
+echo field_input('nickname', $nickname, lang('plex_nickname'), $edit);
 echo field_dropdown('start', $time_options, $start, lang('plex_start'), FALSE);
 echo field_dropdown('stop', $time_options, $stop, lang('plex_stop'), FALSE);
-echo field_multiselect_dropdown('dow', $days_of_week, $dow, lang('plex_dow'));
+echo field_multiselect_dropdown('dow[]', $days_of_week, $dow, lang('plex_dow'));
 echo field_button_set($buttons);
 
 echo form_footer();
@@ -81,14 +81,14 @@ foreach ($definitions as $nickname => $info) {
     $item['action'] = '';
     $item['anchors'] = button_set(
         array(
-            anchor_delete('/app/plex/acl/delete/' . $nickname),
-            anchor_edit('/app/plex/acl/edit/' . $nickname)
+            anchor_delete('/app/plex/acl/delete_time/' . strtr(base64_encode($nickname), '+/=', '-_.')),
+            anchor_edit('/app/plex/acl/edit_time/' . strtr(base64_encode($nickname), '+/=', '-_.'))
         )
     );
     $item['details'] = array(
         $nickname,
         $info['start'] . ' - ' . $info['stop'],
-        $info['dow']
+        (is_array($info['dow']) ? implode(', ', $info['dow']) : $info['dow'])
     );
 
     $items[] = $item;
@@ -99,7 +99,8 @@ foreach ($definitions as $nickname => $info) {
 ///////////////////////////////////////////////////////////////////////////////
 
 $options = array(
-    'id' => 'plex_acl_summary'
+    'id' => 'plex_acl_summary',
+    'empty_table_message' => "<div class='theme-loading-small'>" . lang('software_updates_loading_updates_message') . "</div>"
 );
 echo summary_table(
     lang('plex_acl_times'),

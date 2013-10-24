@@ -58,7 +58,7 @@ foreach ($rules as $mac => $info) {
         $item['title'] = $info['device'];
         $item['action'] = '';
         $item['anchors'] = button_set(array(
-            anchor_delete('/app/plex/acl/delete/' . $id)
+            anchor_delete('/app/plex/acl/delete_rule/' . $id)
         ));
         $item['details'] = array(
             $info['device'],

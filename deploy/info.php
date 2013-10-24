@@ -4,7 +4,7 @@
 // General information
 ///////////////////////////////////////////////////////////////////////////// 
 $app['basename'] = 'plex';
-$app['version'] = '1.0.0';
+$app['version'] = '1.0.1';
 $app['release'] = '1';
 $app['vendor'] = 'eLogic';
 $app['packager'] = 'eLogic';
@@ -31,7 +31,7 @@ $app['controllers']['plex']['title'] = $app['name'];
 /////////////////////////////////////////////////////////////////////////////
 
 $app['core_requires'] = array(
-    'app-network-maps-core',
+    'app-network-map-core',
     'plexmediaserver'
 );
 

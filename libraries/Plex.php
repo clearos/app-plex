@@ -167,13 +167,13 @@ class Plex extends Daemon
     /**
      * Delete ACL rule.
      *
-     * @param int $id line number (ID);
+     * @param int $id line number (ID)
      *
      * @return void
      * @throws Engine_Exception
      */
 
-    function delete_acl($id)
+    function delete_acl_rule($id)
     {
         clearos_profile(__METHOD__, __LINE__);
 
@@ -191,6 +191,42 @@ class Plex extends Daemon
         }
     }
 
+    /**
+     * Delete ACL time definition.
+     *
+     * @param int $id ID
+     *
+     * @return void
+     * @throws Engine_Exception
+     */
+
+    function delete_acl_time_definition($id)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        try {
+            $rules = $this->get_acl_rules();
+            foreach ($rules as $mac -> $rule) {
+                foreach ($rule['acl'] as $line => $time_nickname) {
+                    if ($id == $time_nickname)
+                        $this->delete_acl_rule($line);
+                }
+            } 
+            $file = new File(self::FILE_ACL_DEF, TRUE);
+            $temp = new File(self::FILE_ACL_DEF, TRUE, TRUE);
+            if (!$file->exists())
+                return;
+            $lines = $file->get_contents_as_array();
+            foreach ($lines as $line) {
+                $info = json_decode($line); 
+                if ($id != $info->nickname)
+                    $temp->add_lines($line . "\n");
+            }
+            $file->replace($temp->get_filename());
+        } catch (Exception $e) {
+            throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
+        }
+    }
 
     /**
      * Get ACL rules.
@@ -199,11 +235,11 @@ class Plex extends Daemon
      * @throws Engine_Exception
      */
 
-    function get_acl()
+    function get_acl_rules()
     {
         clearos_profile(__METHOD__, __LINE__);
 
-        $file = new File(self::FILE_FIREWALL_D);
+        $file = new File(self::FILE_FIREWALL_D, TRUE);
         $rules = array();
         $devices = $this->get_device_list();
         if (!$file->exists())
@@ -238,7 +274,7 @@ class Plex extends Daemon
      * @throws Engine_Exception
      */
 
-    function get_acl_definitions()
+    function get_acl_time_definitions()
     {
         clearos_profile(__METHOD__, __LINE__);
 
@@ -248,6 +284,8 @@ class Plex extends Daemon
             return $rules;
         $lines = $file->get_contents_as_array();
         foreach ($lines as $line) {
+            if (empty($line))
+                continue;
             $info = json_decode($line); 
             $rules[$info->nickname] = array(
                 'start' => $info->start,
@@ -350,13 +388,13 @@ class Plex extends Daemon
             $lines = $file->get_contents_as_array();
             
             if (empty($lines) || !preg_match('/.*DROP$/', end($lines)))
-                $file->add_lines("iptables -A INPUT -p tcp --dport 32400 -j DROP\n");
+                $file->add_lines("iptables -I INPUT -p tcp --dport 32400 -j DROP\n");
         }
         $this->_set_parameter('mode', $mode);
     }
 
     /**
-     * Add ACL.
+     * Add or update ACL.
      *
      * @param string $nickname nickname
      * @param string $start    Start time
@@ -367,7 +405,7 @@ class Plex extends Daemon
      * @throws Validation_Exception, Engine_Exception
      */
 
-    public function add_acl_definition($nickname, $start, $stop, $dow)
+    public function add_or_update_acl_time_definition($nickname, $start, $stop, $dow)
     {
         clearos_profile(__METHOD__, __LINE__);
 
@@ -378,9 +416,25 @@ class Plex extends Daemon
 
         try {
             $file = new File(self::FILE_ACL_DEF, TRUE);
+            $temp = new File(self::FILE_ACL_DEF, TRUE, TRUE);
+
             if (!$file->exists())
                 $file->create('webconfig', 'webconfig', '0644');
-            $file->add_lines(
+
+            $lines = $file->get_contents_as_array();
+            $found = FALSE;
+            foreach ($lines as $line) {
+                $info = json_decode($line); 
+                
+                if ($info->nickname == $nickname) {
+                    $found = TRUE;
+                    continue;
+                }
+                $temp->add_lines($line . "\n");
+            }
+
+            // Add back line
+            $temp->add_lines(
                 json_encode(
                     array(
                         'nickname' => $nickname,
@@ -391,6 +445,50 @@ class Plex extends Daemon
                 ) .
                 "\n"
             );
+            $file->replace($temp->get_filename());
+
+            // If we found an entry, we have to update 10-plex in firewall.d
+            if ($found)
+                $this->_update_acl_rules($nickname, $start, $stop, $dow);
+            
+        } catch (Exception $e) {
+            throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
+        }
+    }
+
+    /**
+     * Add an ACL rule.
+     *
+     * @param string $mac      MAC address
+     * @param string $nickname nickname
+     *
+     * @return  void
+     * @throws Engine_Exception
+     */
+
+    public function add_acl($mac, $nickname)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        Validation_Exception::is_valid($this->validate_mac($mac));
+        Validation_Exception::is_valid($this->validate_nickname($nickname));
+
+        try {
+            $definitions = $this->get_acl_time_definitions();
+            $start = $definitions[$nickname]['start'];
+            $stop = $definitions[$nickname]['stop'];
+            $dow = $definitions[$nickname]['dow'];
+            $file = new File(self::FILE_FIREWALL_D, TRUE);
+            if (is_array($dow))
+                $dow = implode(',', $dow);
+            if (!$file->exists()) {
+                $file->create('root', 'root', '0644');
+                $file->add_lines("iptables -I INPUT -p tcp --dport 32400 -j DROP\n");
+            }
+            $file->add_lines(
+                "iptables -I INPUT -p tcp -m mac --mac-source $mac --dport 32400 -m state " .
+                "--state NEW,ESTABLISHED -m time --timestart $start --timestop $stop --weekdays $dow -j ACCEPT # $nickname\n"
+            ); 
         } catch (Exception $e) {
             throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
         }
@@ -427,6 +525,9 @@ class Plex extends Daemon
     function validate_nickname($nickname)
     {
         clearos_profile(__METHOD__, __LINE__);
+
+        if (!isset($nickname) || $nickname == '')
+            return lang('plex_nickname_cannot_be_blank');
 
         if (! preg_match('/^[a-zA-Z0-9_\-\.\/ ]*$/', $nickname))
             return lang('plex_nickname_invalid');
@@ -476,7 +577,8 @@ class Plex extends Daemon
     {
         clearos_profile(__METHOD__, __LINE__);
 
-        $days = preg_split('/\s*,\s*/', $dow);
+        if (!is_array($dow))
+            $days = preg_split('/\s*,\s*/', $dow);
         foreach ($days as $day) {
             if (!array_key_exists($day, $this->get_days_of_week()))
                 return lang('plex_dow_invalid');
@@ -523,35 +625,37 @@ class Plex extends Daemon
     }
 
     /**
-     * Add an ACL rule.
+     * Update ACL rules.
      *
-     * @param string $mac      MAC address
-     * @param string $nickname nickname
+     * @param string $timerule time rule definition
      *
-     * @return  void
+     * @return array ACL rules
      * @throws Engine_Exception
      */
 
-    public function add_acl($mac, $rule)
+    private function _update_acl_rules($nickname, $start, $stop, $dow)
     {
         clearos_profile(__METHOD__, __LINE__);
 
-        Validation_Exception::is_valid($this->validate_mac($mac));
-        Validation_Exception::is_valid($this->validate_nickname($nickname));
-
         try {
-            $definitions = $this->get_acl_definitions();
-            $start = $definitions[$rule]['start'];
-            $stop = $definitions[$rule]['stop'];
-            $dow = $definitions[$rule]['dow'];
             $file = new File(self::FILE_FIREWALL_D, TRUE);
+            $temp = new File(self::FILE_FIREWALL_D, TRUE, TRUE);
+            $rules = array();
             if (!$file->exists())
-                $file->create('root', 'root', '0644');
-//        iptables -A INPUT -p tcp -m mac --mac-source 00:0F:EA:91:04:07 --dport 32400 -m state --state NEW,ESTABLISHED -m time --timestart 09:00 --timestop 18:00 --weekdays Mon,Tue,Wed,Thu,Fri -j ACCEPT
-            $file->add_lines(
-                "iptables -A INPUT -p tcp -m mac --mac-source $mac --dport 32400 -m state " .
-                "--state NEW,ESTABLISHED -m time --timestart $start --timestop $stop --weekdays $dow -j ACCEPT # $rule\n"
-            ); 
+                return $rules;
+            $lines = $file->get_contents_as_array();
+            if (is_array($dow))
+                $dow = implode(',', $dow);
+            foreach ($lines as $line) {
+                if (preg_match("/^.*--mac-source\s+(([a-fA-F0-9]{2}[:|\-]?){6})\s+.*ACCEPT # $nickname$/", $line, $match))
+                    $temp->add_lines(
+                        "iptables -I INPUT -p tcp -m mac --mac-source " . $match[1] . " --dport 32400 -m state " .
+                        "--state NEW,ESTABLISHED -m time --timestart $start --timestop $stop --weekdays $dow -j ACCEPT # $nickname\n"
+                    ); 
+                else
+                    $temp->add_lines($line . "\n");
+            }
+            $file->replace($temp->get_filename());
         } catch (Exception $e) {
             throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
         }
@@ -582,6 +686,4 @@ class Plex extends Daemon
 
         $this->is_loaded = FALSE;
     }
-
-
 }

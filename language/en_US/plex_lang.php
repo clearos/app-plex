@@ -25,3 +25,4 @@ $lang['plex_mode_invalid'] = 'Invalid mode.';
 $lang['plex_not_available'] = 'The Plex Media Server User Interface is not available when the service is stopped.';
 $lang['plex_open_myplex'] = 'Open MyPlex';
 $lang['plex_web_help'] = 'The Plex Media Server is available.  Click on the link below to open to configure or access your media.';
+$lang['plex_nickname_cannot_be_blank'] = 'Nickname cannot be blank.';

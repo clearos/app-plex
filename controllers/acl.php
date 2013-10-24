@@ -57,6 +57,8 @@ class Acl extends ClearOS_Controller
 
     function index()
     {
+        clearos_profile(__METHOD__, __LINE__);
+
         // Load libraries
         //---------------
 
@@ -67,7 +69,7 @@ class Acl extends ClearOS_Controller
         //---------------
 
         $data = array (
-            'rules' => $this->plex->get_acl()
+            'rules' => $this->plex->get_acl_rules()
         );
 
         $this->page->view_form('plex/acl', $data, lang('plex_acl_rules'));
@@ -81,6 +83,8 @@ class Acl extends ClearOS_Controller
 
     function rule()
     {
+        clearos_profile(__METHOD__, __LINE__);
+
         // Load libraries
         //---------------
 
@@ -92,8 +96,8 @@ class Acl extends ClearOS_Controller
         // Set validation rules
         //---------------------
        
-        $this->form_validation->set_policy('mac', 'plex/Plex', 'validate_mac');
-        $this->form_validation->set_policy('nickname', 'plex/Plex', 'validate_nickname');
+        $this->form_validation->set_policy('mac', 'plex/Plex', 'validate_mac', TRUE);
+        $this->form_validation->set_policy('nickname', 'plex/Plex', 'validate_nickname', TRUE);
         $form_ok = $this->form_validation->run();
 
         $data = array();
@@ -124,7 +128,7 @@ class Acl extends ClearOS_Controller
                 $dev_id = $info['username'] . ' - ' . $device['type']; 
             $data['devices'][$mac] = $dev_id;
         }
-        $definitions = $this->plex->get_acl_definitions(); 
+        $definitions = $this->plex->get_acl_time_definitions(); 
         foreach ($definitions as $nickname => $definition)
             $data['definitions'][$nickname] = $nickname;
 
@@ -132,13 +136,41 @@ class Acl extends ClearOS_Controller
     }
 
     /**
-     * Add acl.
+     * Add acl time definition.
      *
      * @return view
      */
 
-    function add()
+    function add_time()
     {
+        clearos_profile(__METHOD__, __LINE__);
+
+        $this->_add_edit_time();
+    }
+
+    /**
+     * Edit acl time definition.
+     *
+     * @return view
+     */
+
+    function edit_time($id)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        $this->_add_edit_time(base64_decode($id));
+    }
+
+    /**
+     * Add/Edit acl time definition.
+     *
+     * @return view
+     */
+
+    private function _add_edit_time($id = NULL)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
         // Load libraries
         //---------------
 
@@ -149,10 +181,11 @@ class Acl extends ClearOS_Controller
         // Set validation rules
         //---------------------
        
-        $this->form_validation->set_policy('nickname', 'plex/Plex', 'validate_nickname');
-        $this->form_validation->set_policy('start', 'plex/Plex', 'validate_start');
-        $this->form_validation->set_policy('stop', 'plex/Plex', 'validate_stop');
-        $this->form_validation->set_policy('dow', 'plex/Plex', 'validate_dow');
+        if ($id == NULL)
+            $this->form_validation->set_policy('nickname', 'plex/Plex', 'validate_nickname', TRUE);
+        $this->form_validation->set_policy('start', 'plex/Plex', 'validate_start', TRUE);
+        $this->form_validation->set_policy('stop', 'plex/Plex', 'validate_stop', TRUE);
+        $this->form_validation->set_policy('dow[]', 'plex/Plex', 'validate_dow', TRUE);
         $form_ok = $this->form_validation->run();
 
         $data = array();
@@ -160,12 +193,16 @@ class Acl extends ClearOS_Controller
         // Handle form submit
         //-------------------
         if ($form_ok) {
-            $this->plex->add_acl_definition(
-                $this->input->post('nickname'),
-                $this->input->post('start'),
-                $this->input->post('stop'),
-                $this->input->post('dow')
-            );
+            try {
+                $this->plex->add_or_update_acl_time_definition(
+                    $this->input->post('nickname'),
+                    $this->input->post('start'),
+                    $this->input->post('stop'),
+                    $this->input->post('dow')
+                );
+            } catch (Exception $e) {
+                $this->page->set_message(clearos_exception_message($e), 'warning');
+            }
             redirect('/plex');
             return;
         }
@@ -174,31 +211,69 @@ class Acl extends ClearOS_Controller
         //---------------
         $data['time_options'] = $this->plex->get_time_options();
         $data['days_of_week'] = $this->plex->get_days_of_week(); 
-        $data['definitions'] = $this->plex->get_acl_definitions(); 
+        $data['definitions'] = $this->plex->get_acl_time_definitions(); 
+        $data['edit'] = FALSE;
+        if ($id != NULL) {
+            $data['nickname'] = $id;
+            $data['start'] = $data['definitions'][$id]['start'];
+            $data['stop'] = $data['definitions'][$id]['stop'];
+            $data['dow'] = $data['definitions'][$id]['dow'];
+            $data['edit'] = TRUE;
+        }
 
         $this->page->view_form('plex/acl_add', $data, lang('plex_add_acl'));
     }
 
     /**
-     * Delete device.
+     * Delete ACL rule.
+     *
+     * @param int $id ID
      *
      * @return view
      */
 
-    function delete($id)
+    function delete_rule($id)
     {
+        clearos_profile(__METHOD__, __LINE__);
+
         // Load libraries
         //---------------
 
         $this->load->library('plex/Plex');
 
         try {
-            $this->plex->delete_acl($id);
+            $this->plex->delete_acl_rule($id);
         } catch (Exception $e) {
             $this->page->set_message(clearos_exception_message($e), 'warning');
         }
 
         redirect('/plex');
+    }
+
+    /**
+     * Delete ACL time definition.
+     *
+     * @param string $nickname unique nickname (ID)
+     *
+     * @return view
+     */
+
+    function delete_time($nickname)
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        // Load libraries
+        //---------------
+
+        $this->load->library('plex/Plex');
+
+        try {
+            $this->plex->delete_acl_time_definition(base64_decode($nickname));
+        } catch (Exception $e) {
+            $this->page->set_message(clearos_exception_message($e), 'warning');
+        }
+
+        redirect('plex/acl/add_time');
     }
 }
 

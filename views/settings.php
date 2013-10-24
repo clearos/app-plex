@@ -58,7 +58,7 @@ if ($edit) {
     $read_only = TRUE;
     $buttons = array(
         anchor_edit('/app/plex/settings/edit'),
-        anchor_custom('/app/plex/acl/add', lang('plex_add_edit_acl'), 'important')
+        anchor_custom('/app/plex/acl/add_time', lang('plex_add_edit_acl'), 'important')
     );
 }
 
