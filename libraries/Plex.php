@@ -56,16 +56,18 @@ clearos_load_language('plex');
 //--------
 
 use \clearos\apps\base\Configuration_File as Configuration_File;
-use \clearos\apps\base\Engine as Engine;
+use \clearos\apps\base\Daemon as Daemon;
 use \clearos\apps\base\File as File;
-use \clearos\apps\base\Daemon;
-use \clearos\apps\network\Network_Utils;
-use \clearos\apps\network_map\Network_Map;
+use \clearos\apps\firewall\Firewall as Firewall;
+use \clearos\apps\incoming_firewall\Incoming as Incoming;
+use \clearos\apps\network\Network_Utils as Network_Utils;
+use \clearos\apps\network_map\Network_Map as Network_Map;
 
 clearos_load_library('base/Configuration_File');
-clearos_load_library('base/Engine');
-clearos_load_library('base/File');
 clearos_load_library('base/Daemon');
+clearos_load_library('base/File');
+clearos_load_library('firewall/Firewall');
+clearos_load_library('incoming_firewall/Incoming');
 clearos_load_library('network/Network_Utils');
 clearos_load_library('network_map/Network_Map');
 
@@ -104,6 +106,7 @@ class Plex extends Daemon
     const FILE_ACL_DEF = "/var/clearos/plex/acl.conf";
     const FILE_FIREWALL_D = "/etc/clearos/firewall.d/10-plex";
     const FOLDER_PLEX = '/var/clearos/plex';
+    const DEFAULT_PORT = 32400;
 
     ///////////////////////////////////////////////////////////////////////////////
     // V A R I A B L E S
@@ -388,9 +391,12 @@ class Plex extends Daemon
             $lines = $file->get_contents_as_array();
             
             if (empty($lines) || !preg_match('/.*DROP$/', end($lines)))
-                $file->add_lines("iptables -I INPUT -p tcp --dport 32400 -j DROP\n");
+                $file->add_lines("iptables -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
         }
         $this->_set_parameter('mode', $mode);
+
+        // Restart firewall
+        $this->_restart_firewall();
     }
 
     /**
@@ -483,15 +489,45 @@ class Plex extends Daemon
                 $dow = implode(',', $dow);
             if (!$file->exists()) {
                 $file->create('root', 'root', '0644');
-                $file->add_lines("iptables -I INPUT -p tcp --dport 32400 -j DROP\n");
+                $file->add_lines("iptables -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
             }
+            $time_of_day = "--timestart $start --timestop $stop";
+            if ($start == '00:00' && ($stop == '00:00' || '23:45'))
+                $time_of_day = '';
             $file->add_lines(
-                "iptables -I INPUT -p tcp -m mac --mac-source $mac --dport 32400 -m state " .
-                "--state NEW,ESTABLISHED -m time --timestart $start --timestop $stop --weekdays $dow -j ACCEPT # $nickname\n"
+                "iptables -I INPUT -p tcp -m mac --mac-source $mac --dport " . $this->_get_port() ." -m state " .
+                "--state NEW,ESTABLISHED -m time $time_of_day --weekdays $dow -j ACCEPT # $nickname\n"
             ); 
+
+            // Restart firewall
+            $this->_restart_firewall();
         } catch (Exception $e) {
             throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
         }
+    }
+
+    /**
+     * Sanity check mode and firewall settings.
+     *
+     * @return  void
+     * @throws Engine_Exception
+     */
+
+    public function sanity_check_fw()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+        $incoming = new Incoming();
+        
+        // Don't worry if allow all access to Plex
+        if ($this->get_mode() == 'allow_all')
+            return NULL;
+
+        $incoming_allow = $incoming->get_allow_ports(); 
+        foreach ($incoming_allow as $info) {
+            if ($info['port'] == $this->_get_port() && $info['enabled'])
+                return lang('plex_sanity_incoming');
+        }
+        return NULL;
     }
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -588,7 +624,7 @@ class Plex extends Daemon
     /**
      * Validates MAC address.
      *
-     * @param string  $mac          MAC address
+     * @param string $mac MAC address
      *
      * @return string error message if MAC address is invalid
      */
@@ -601,7 +637,6 @@ class Plex extends Daemon
             return lang('network_mac_address_invalid');
 
     }
-
 
     ///////////////////////////////////////////////////////////////////////////////
     // P R I V A T E   M E T H O D S
@@ -627,7 +662,10 @@ class Plex extends Daemon
     /**
      * Update ACL rules.
      *
-     * @param string $timerule time rule definition
+     * @param string $nickname nickname
+     * @param string $start    Start time
+     * @param string $stop     Stop time
+     * @param string $dow      Day of Week
      *
      * @return array ACL rules
      * @throws Engine_Exception
@@ -647,15 +685,22 @@ class Plex extends Daemon
             if (is_array($dow))
                 $dow = implode(',', $dow);
             foreach ($lines as $line) {
+                $time_of_day = "--timestart $start --timestop $stop";
+                if ($start == '00:00' && ($stop == '00:00' || '23:45'))
+                    $time_of_day = '';
                 if (preg_match("/^.*--mac-source\s+(([a-fA-F0-9]{2}[:|\-]?){6})\s+.*ACCEPT # $nickname$/", $line, $match))
                     $temp->add_lines(
-                        "iptables -I INPUT -p tcp -m mac --mac-source " . $match[1] . " --dport 32400 -m state " .
-                        "--state NEW,ESTABLISHED -m time --timestart $start --timestop $stop --weekdays $dow -j ACCEPT # $nickname\n"
+                        "iptables -I INPUT -p tcp -m mac --mac-source " . $match[1] . " --dport " . $this->_get_port() ." -m state " .
+                        "--state NEW,ESTABLISHED -m time $time_of_day --weekdays $dow -j ACCEPT # $nickname\n"
                     ); 
                 else
                     $temp->add_lines($line . "\n");
             }
             $file->replace($temp->get_filename());
+
+            // Restart firewall
+            $this->_restart_firewall();
+
         } catch (Exception $e) {
             throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
         }
@@ -685,5 +730,48 @@ class Plex extends Daemon
         }
 
         $this->is_loaded = FALSE;
+    }
+
+    /**
+     * Restart firewall after change.
+     *
+     * @return  void
+     * @throws Engine_Exception
+     */
+
+    private function _restart_firewall()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        try {
+            $firewall = new Firewall(); 
+            $firewall->restart();
+        } catch (Exception $e) {
+            throw new Engine_Exception(clearos_exception_message($e), CLEAROS_ERROR);
+        }
+    }
+
+    /**
+     * Get the port Plex runs on.
+     *
+     * @return int port
+     */
+
+    private function _get_port()
+    {
+        clearos_profile(__METHOD__, __LINE__);
+
+        try {
+            if (! $this->is_loaded)
+                $this->_load_config();
+
+            if (!isset($this->config['port']))
+                return self::DEFAULT_PORT;
+
+            return $this->config['port'];
+
+        } catch (Exception $e) {
+            return self::DEFAULT_PORT;
+        }
     }
 }

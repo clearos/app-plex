@@ -85,9 +85,12 @@ foreach ($definitions as $nickname => $info) {
             anchor_edit('/app/plex/acl/edit_time/' . strtr(base64_encode($nickname), '+/=', '-_.'))
         )
     );
+    $time_window = $info['start'] . ' - ' . $info['stop'];
+    if ($info['start'] == '00:00' && ($info['stop'] == '00:00' || $info['stop'] == '23:45'))
+        $time_window = lang('plex_all_day');
     $item['details'] = array(
         $nickname,
-        $info['start'] . ' - ' . $info['stop'],
+        $time_window,
         (is_array($info['dow']) ? implode(', ', $info['dow']) : $info['dow'])
     );
 

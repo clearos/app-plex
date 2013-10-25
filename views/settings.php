@@ -37,6 +37,11 @@ $this->lang->load('base');
 $this->lang->load('plex');
 $this->lang->load('network');
 
+if ($sanity_check_fw != NULL)
+    echo infobox_warning(
+        lang('base_warning'),
+        "<div>" . $sanity_check_fw . "</div>"
+    );
 ///////////////////////////////////////////////////////////////////////////////
 // Form open
 ///////////////////////////////////////////////////////////////////////////////

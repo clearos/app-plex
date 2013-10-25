@@ -71,6 +71,8 @@ class Settings extends ClearOS_Controller
             'modes' => $this->plex->get_modes()
         );
 
+        $data['sanity_check_fw'] = $this->plex->sanity_check_fw();
+
         $this->page->view_form('plex/settings', $data, lang('base_settings'));
     }
 
