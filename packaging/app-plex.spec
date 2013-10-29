@@ -1,7 +1,7 @@
 
 Name: app-plex
 Epoch: 1
-Version: 1.0.2
+Version: 1.0.3
 Release: 1%{dist}
 Summary: Plex Media Server
 License: GPLv3
@@ -14,7 +14,7 @@ Requires: %{name}-core = 1:%{version}-%{release}
 Requires: app-base
 
 %description
-The Plex Media Server is the backend application to help you manage and stream media to almost any network connected device.
+The Plex Media Server is a backend application to help you manage and stream media to almost any network connected device.
 
 %package core
 Summary: Plex Media Server - Core
@@ -25,7 +25,7 @@ Requires: app-network-map-core
 Requires: plexmediaserver
 
 %description core
-The Plex Media Server is the backend application to help you manage and stream media to almost any network connected device.
+The Plex Media Server is a backend application to help you manage and stream media to almost any network connected device.
 
 This package provides the core API and libraries.
 

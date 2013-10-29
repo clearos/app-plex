@@ -4,7 +4,7 @@
 // General information
 ///////////////////////////////////////////////////////////////////////////// 
 $app['basename'] = 'plex';
-$app['version'] = '1.0.2';
+$app['version'] = '1.0.3';
 $app['release'] = '1';
 $app['vendor'] = 'eLogic';
 $app['packager'] = 'eLogic';
