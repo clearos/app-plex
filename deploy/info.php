@@ -4,10 +4,10 @@
 // General information
 ///////////////////////////////////////////////////////////////////////////// 
 $app['basename'] = 'plex';
-$app['version'] = '1.0.3';
+$app['version'] = '1.0.4';
 $app['release'] = '1';
-$app['vendor'] = 'eLogic';
-$app['packager'] = 'eLogic';
+$app['vendor'] = 'eGloo';
+$app['packager'] = 'eGloo';
 $app['license'] = 'GPLv3';
 $app['license_core'] = 'LGPLv3';
 $app['description'] = lang('plex_app_description');

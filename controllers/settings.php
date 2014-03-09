@@ -6,10 +6,10 @@
  * @category   apps
  * @package    plex
  * @subpackage controllers
- * @author     eLogic <developer@elogic.ca>
- * @copyright  2013 eLogic
+ * @author     eGloo <developer@egloo.ca>
+ * @copyright  2013 eGloo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU General Public License version 3 or later
- * @link       http://www.elogic.ca/clearos/marketplace/apps/plex
+ * @link       http://www.egloo.ca/clearos/marketplace/apps/plex
  */
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,10 +43,10 @@
  * @category   apps
  * @package    plex
  * @subpackage controllers
- * @author     eLogic <developer@elogic.ca>
- * @copyright  2013 eLogic
+ * @author     eGloo <developer@egloo.ca>
+ * @copyright  2013 eGloo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU General Public License version 3 or later
- * @link       http://www.elogic.ca/clearos/marketplace/apps/plex
+ * @link       http://www.egloo.ca/clearos/marketplace/apps/plex
  */
 
 class Settings extends ClearOS_Controller

@@ -6,8 +6,8 @@ Release: 1%{dist}
 Summary: Plex Media Server
 License: GPLv3
 Group: ClearOS/Apps
-Packager: eLogic
-Vendor: eLogic
+Packager: eGloo
+Vendor: eGloo
 Source: %{name}-%{version}.tar.gz
 Buildarch: noarch
 Requires: %{name}-core = 1:%{version}-%{release}
@@ -79,7 +79,6 @@ exit 0
 %files core
 %defattr(-,root,root)
 %exclude /usr/clearos/apps/plex/packaging
-%exclude /usr/clearos/apps/plex/tests
 %dir /usr/clearos/apps/plex
 %dir %attr(0755,webconfig,webconfig) /var/clearos/plex
 /usr/clearos/apps/plex/deploy

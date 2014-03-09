@@ -6,10 +6,10 @@
  * @category   apps
  * @package    plex
  * @subpackage views
- * @author     eLogic <developer@elogic.ca>
- * @copyright  2013 eLogic
+ * @author     eGloo <developer@egloo.ca>
+ * @copyright  2014 eGloo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU General Public License version 3 or later
- * @link       http://www.elogic.ca/clearos/marketplace/apps/plex
+ * @link       http://www.egloo.ca/clearos/marketplace/apps/plex
  */
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,7 +42,7 @@ $serveraddr = getenv("SERVER_NAME");
 
 if ($is_running)
     echo infobox_highlight(
-        lang('plex_app_name'),
+        lang('plex_app_name') . ' - ' . lang('base_version') . ' ' . $version,
         lang('plex_web_help') .
         "<div style='text-align: center; padding-top: 10px;'>" .  
         anchor_custom('http://'.$serveraddr.':32400/web', lang('plex_open_myplex'), 'high', array('target' => '_blank')) . 
