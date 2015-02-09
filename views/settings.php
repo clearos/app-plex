@@ -67,6 +67,7 @@ if ($edit) {
     );
 }
 
+echo field_input('version', $version, lang('plex_version'), TRUE);
 echo field_dropdown('mode', $modes, $mode, lang('plex_mode'), $read_only);
 echo field_button_set($buttons);
 

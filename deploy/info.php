@@ -4,13 +4,14 @@
 // General information
 ///////////////////////////////////////////////////////////////////////////// 
 $app['basename'] = 'plex';
-$app['version'] = '1.6.5';
+$app['version'] = '1.6.6';
 $app['release'] = '1';
 $app['vendor'] = 'eGloo';
 $app['packager'] = 'eGloo';
 $app['license'] = 'GPLv3';
 $app['license_core'] = 'LGPLv3';
 $app['description'] = lang('plex_app_description');
+$app['tooltip'] = sprintf(lang('plex_app_tooltip'), "<a href='http://" . $_SERVER['SERVER_NAME'] . ":32400/web'>http://" . $_SERVER['SERVER_NAME'] . ":32400/web</a>");
 
 /////////////////////////////////////////////////////////////////////////////
 // App name and categories

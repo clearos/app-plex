@@ -67,6 +67,7 @@ class Settings extends ClearOS_Controller
 
         $data = array(
             'edit' => FALSE,
+            'version' => $this->plex->get_version(),
             'mode' => $this->plex->get_mode(),
             'modes' => $this->plex->get_modes()
         );
@@ -109,6 +110,7 @@ class Settings extends ClearOS_Controller
 
         $data = array(
             'edit' => TRUE,
+            'version' => $this->plex->get_version(),
             'mode' => $this->plex->get_mode(),
             'modes' => $this->plex->get_modes()
         );

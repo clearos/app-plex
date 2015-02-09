@@ -7,7 +7,7 @@
  * @package    plex
  * @subpackage controllers
  * @author     eGloo <developer@egloo.ca>
- * @copyright  2013 eGloo
+ * @copyright  2013-2015 eGloo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU General Public License version 3 or later
  * @link       http://www.egloo.ca/clearos/marketplace/apps/plex
  */
@@ -75,7 +75,6 @@ class Summary extends ClearOS_Controller
         // Load view data
         //---------------
         $data['is_running'] = $this->plex->get_running_state();
-        $data['version'] = $this->plex->get_version();
 
         // Load views
         //-----------

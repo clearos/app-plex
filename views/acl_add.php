@@ -103,7 +103,7 @@ foreach ($definitions as $nickname => $info) {
 
 $options = array(
     'id' => 'plex_acl_summary',
-    'empty_table_message' => "<div class='theme-loading-small'>" . lang('software_updates_loading_updates_message') . "</div>"
+    'empty_table_message' =>  lang('plex_no_acl_times_defined')
 );
 echo summary_table(
     lang('plex_acl_times'),

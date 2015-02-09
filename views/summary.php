@@ -40,15 +40,7 @@ $this->lang->load('plex');
 $serveraddr = getenv("SERVER_NAME");
 
 
-if ($is_running)
-    echo infobox_highlight(
-        lang('plex_app_name') . ' - ' . lang('base_version') . ' ' . $version,
-        lang('plex_web_help') .
-        "<div style='text-align: center; padding-top: 10px;'>" .  
-        anchor_custom('http://'.$serveraddr.':32400/web', lang('plex_open_myplex'), 'high', array('target' => '_blank')) . 
-        "</div>"
-    );
-else
+if (!$is_running)
     echo infobox_warning(
         lang('plex_app_name'),
         "<div>" . lang('plex_not_available') . "</div>"
