@@ -1,7 +1,7 @@
 
 Name: app-plex
 Epoch: 1
-Version: 1.6.6
+Version: 2.0.0
 Release: 1%{dist}
 Summary: Plex Media Server
 License: GPLv3

@@ -20,7 +20,7 @@ clearos_load_language('plex');
 $configlet = array(
 	'title' => lang('plex_app_name'),
 	'package' => 'plexmediaserver',
-	'process_name' => 'plexmediaserver',
-	'pid_file' => '/var/run/PlexMediaServer.pid',
+	'process_name' => 'Plex Media Server',
+	'pid_file' => '/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/plexmediaserver.pid',
 	'reloadable' => FALSE,
 );
