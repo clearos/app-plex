@@ -107,6 +107,7 @@ class Plex extends Daemon
     const FILE_FIREWALL_D = "/etc/clearos/firewall.d/10-plex";
     const FOLDER_PLEX = '/var/clearos/plex';
     const DEFAULT_PORT = 32400;
+    const IPTABLES = '$IPTABLES';
 
     ///////////////////////////////////////////////////////////////////////////////
     // V A R I A B L E S
@@ -391,7 +392,7 @@ class Plex extends Daemon
             $lines = $file->get_contents_as_array();
             
             if (empty($lines) || !preg_match('/.*DROP$/', end($lines)))
-                $file->add_lines("iptables -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
+                $file->add_lines(self::IPTABLES . " -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
         }
         $this->_set_parameter('mode', $mode);
 
@@ -489,13 +490,13 @@ class Plex extends Daemon
                 $dow = implode(',', $dow);
             if (!$file->exists()) {
                 $file->create('root', 'root', '0644');
-                $file->add_lines("iptables -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
+                $file->add_lines(self::IPTABLES . " -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
             }
             $time_of_day = "--timestart $start --timestop $stop";
             if ($start == '00:00' && ($stop == '00:00' || '23:45'))
                 $time_of_day = '';
             $file->add_lines(
-                "iptables -I INPUT -p tcp -m mac --mac-source $mac --dport " . $this->_get_port() ." -m state " .
+                self::IPTABLES . " -I INPUT -p tcp -m mac --mac-source $mac --dport " . $this->_get_port() ." -m state " .
                 "--state NEW,ESTABLISHED -m time $time_of_day --weekdays $dow -j ACCEPT # $nickname\n"
             ); 
 
@@ -690,7 +691,7 @@ class Plex extends Daemon
                     $time_of_day = '';
                 if (preg_match("/^.*--mac-source\s+(([a-fA-F0-9]{2}[:|\-]?){6})\s+.*ACCEPT # $nickname$/", $line, $match))
                     $temp->add_lines(
-                        "iptables -I INPUT -p tcp -m mac --mac-source " . $match[1] . " --dport " . $this->_get_port() ." -m state " .
+                        self::IPTABLES . " -I INPUT -p tcp -m mac --mac-source " . $match[1] . " --dport " . $this->_get_port() ." -m state " .
                         "--state NEW,ESTABLISHED -m time $time_of_day --weekdays $dow -j ACCEPT # $nickname\n"
                     ); 
                 else
