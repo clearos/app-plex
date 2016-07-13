@@ -390,9 +390,14 @@ class Plex extends Daemon
             // Now that file exists, make sure first line is blanket block
             $file = new File(self::FILE_FIREWALL_D, TRUE);
             $lines = $file->get_contents_as_array();
+            $add_drop = TRUE;
+            foreach ($lines as $line) {
+                if (preg_match('/.*DROP$/', $line))
+                    $add_drop = FALSE;
+            }
             
-            if (empty($lines) || !preg_match('/.*DROP$/', end($lines)))
-                $file->add_lines(self::IPTABLES . " -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
+            if ($add_drop)
+                $file->add_lines_after("\t" . self::IPTABLES . " -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n", "/.*FW_PROTO.*/");
         }
         $this->_set_parameter('mode', $mode);
 
@@ -490,14 +495,24 @@ class Plex extends Daemon
                 $dow = implode(',', $dow);
             if (!$file->exists()) {
                 $file->create('root', 'root', '0644');
-                $file->add_lines(self::IPTABLES . " -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n");
+                $file->add_lines_before("\t" . self::IPTABLES . " -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n", "/^fi$/");
+            } else {
+                $lines = $file->get_contents_as_array();
+                $add_drop = TRUE;
+                foreach ($lines as $line) {
+                    if (preg_match('/.*DROP$/', $line))
+                        $add_drop = FALSE;
+                }
+                
+                if ($add_drop)
+                    $file->add_lines_after("\t" . self::IPTABLES . " -I INPUT -p tcp --dport " . $this->_get_port() ." -j DROP\n", "/.*FW_PROTO.*/");
             }
             $time_of_day = "--timestart $start --timestop $stop";
             if ($start == '00:00' && ($stop == '00:00' || '23:45'))
                 $time_of_day = '';
-            $file->add_lines(
-                self::IPTABLES . " -I INPUT -p tcp -m mac --mac-source $mac --dport " . $this->_get_port() ." -m state " .
-                "--state NEW,ESTABLISHED -m time $time_of_day --weekdays $dow -j ACCEPT # $nickname\n"
+            $file->add_lines_before(
+                "\t" . self::IPTABLES . " -I INPUT -p tcp -m mac --mac-source $mac --dport " . $this->_get_port() ." -m state " .
+                "--state NEW,ESTABLISHED -m time $time_of_day --weekdays $dow -j ACCEPT # $nickname\n", "/^fi$/"
             ); 
 
             // Restart firewall
@@ -691,7 +706,7 @@ class Plex extends Daemon
                     $time_of_day = '';
                 if (preg_match("/^.*--mac-source\s+(([a-fA-F0-9]{2}[:|\-]?){6})\s+.*ACCEPT # $nickname$/", $line, $match))
                     $temp->add_lines(
-                        self::IPTABLES . " -I INPUT -p tcp -m mac --mac-source " . $match[1] . " --dport " . $this->_get_port() ." -m state " .
+                        "\t" . self::IPTABLES . " -I INPUT -p tcp -m mac --mac-source " . $match[1] . " --dport " . $this->_get_port() ." -m state " .
                         "--state NEW,ESTABLISHED -m time $time_of_day --weekdays $dow -j ACCEPT # $nickname\n"
                     ); 
                 else

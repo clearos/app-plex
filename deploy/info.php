@@ -4,7 +4,7 @@
 // General information
 ///////////////////////////////////////////////////////////////////////////// 
 $app['basename'] = 'plex';
-$app['version'] = '2.0.3';
+$app['version'] = '2.0.4';
 $app['release'] = '1';
 $app['vendor'] = 'eGloo';
 $app['packager'] = 'eGloo';
