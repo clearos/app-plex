@@ -1,2 +1,2 @@
-if [ "$FW_PROTO" == "ipv4" ]; then
+if [ "$FW_PROTO" == "ipv4" ]; then true
 fi
