@@ -2,7 +2,15 @@
 
 # Modify fw script to handle ipv4/ipv6
 #-------------------------------------
+
 if ! grep -q FW_PROTO /etc/clearos/firewall.d/10-plex; then
     sed -i '1s/^/if [ \"\$FW_PROTO\" == \"ipv4\" ]; then\n/' /etc/clearos/firewall.d/10-plex
     sed -i -e "\$afi" /etc/clearos/firewall.d/10-plex
+fi
+
+# Move rpmnew out of the way
+#---------------------------
+
+if [ -e /etc/clearos/firewall.d/10-plex.rpmnew ]; then
+    mv /etc/clearos/firewall.d/10-plex.rpmnew /var/tmp
 fi
