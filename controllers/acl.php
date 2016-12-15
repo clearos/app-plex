@@ -72,7 +72,7 @@ class Acl extends ClearOS_Controller
             'rules' => $this->plex->get_acl_rules()
         );
 
-        $this->page->view_form('plex/acl', $data, lang('plex_acl_rules'));
+        $this->page->view_form('plex/acl', $data, lang('plex_acl_definition'));
     }
 
     /**
