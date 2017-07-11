@@ -7,7 +7,7 @@
 $server_name = (empty($_SERVER['SERVER_NAME'])) ? '127.0.0.1' : $_SERVER['SERVER_NAME'];
 
 $app['basename'] = 'plex';
-$app['version'] = '2.0.7';
+$app['version'] = '2.0.8';
 $app['release'] = '1';
 $app['vendor'] = 'eGloo';
 $app['packager'] = 'eGloo';
